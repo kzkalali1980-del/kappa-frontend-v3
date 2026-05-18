@@ -137,6 +137,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .inv-key { font-size: 10px; font-family: var(--mono); color: var(--text3); }
 .inv-val { font-size: 10px; font-family: var(--mono); color: var(--text2); }
 
+.supp-card { background: var(--bg3); border: 1px solid var(--border2); padding: 10px; border-radius: 2px; }
+.supp-title { font-size: 9px; font-family: var(--mono); color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.supp-title::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .source-tag { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 1px; text-align: right; }
 .source-tag span { color: var(--accent3); }
 
@@ -309,6 +312,12 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
           <div class="inversion-card">
             <div class="inv-title">▸ Thermal Layer Analysis</div>
             <div id="inversion-data"></div>
+          </div>
+
+          <!-- SUPPLEMENTARY -->
+          <div class="supp-card" id="supp-card" style="display:none">
+            <div class="supp-title">ERA5-Single Supplementary</div>
+            <div id="supp-data"></div>
           </div>
 
           <!-- SOURCE TAG -->
@@ -516,6 +525,22 @@ function displayResults(d) {
   document.getElementById('result-source').textContent = (d.source || currentSource).toUpperCase();
 
   if (d.layers && d.layers.length > 0) drawProfile(d.layers);
+
+  // Supplementary data
+  const supp = d.supplementary;
+  if (supp) {
+    document.getElementById('supp-card').style.display = 'block';
+    const suppRows = [];
+    if (supp.blh_m !== undefined) suppRows.push(['BOUNDARY LAYER HEIGHT', supp.blh_m + ' m', 'var(--accent2)']);
+    if (supp.tcwv_mm !== undefined) suppRows.push(['TOTAL COLUMN WATER VAPOUR', supp.tcwv_mm + ' mm', 'var(--accent2)']);
+    if (supp.sst_c !== undefined) suppRows.push(['SEA SURFACE TEMP', supp.sst_c + ' °C', 'var(--accent2)']);
+    const suppHtml = suppRows.map(([k,v,c]) =>
+      `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
+    ).join('');
+    document.getElementById('supp-data').innerHTML = suppHtml;
+  } else {
+    document.getElementById('supp-card').style.display = 'none';
+  }
 
   const inv = d.inversion || {};
   const invRows = [
