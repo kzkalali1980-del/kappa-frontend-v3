@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAPPA Arc V3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg: #080c10;
+  --bg2: #0d1219;
+  --bg3: #111820;
+  --bg4: #161e28;
+  --border: rgba(0,200,180,0.12);
+  --border2: rgba(0,200,180,0.25);
+  --accent: #00c8b4;
+  --accent2: #0af0d8;
+  --accent3: #005f57;
+  --amber: #f0a020;
+  --red: #ff4444;
+  --green: #22dd88;
+  --text: #e8f4f2;
+  --text2: #8ab0aa;
+  --text3: #4a7070;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+/* LAYOUT */
+.app { display: grid; grid-template-columns: 1fr 440px; grid-template-rows: 48px 1fr; height: 100vh; }
+.topbar { grid-column: 1/-1; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 20px; z-index: 100; }
+.map-pane { position: relative; background: var(--bg); overflow: hidden; }
+.side-pane { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+
+/* TOPBAR */
+.logo { font-size: 18px; font-weight: 800; letter-spacing: 3px; color: var(--accent); font-family: var(--mono); }
+.logo span { color: var(--text3); font-weight: 400; }
+.topbar-divider { width: 1px; height: 20px; background: var(--border); }
+.tagline { font-size: 11px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; font-family: var(--mono); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.status-text { font-size: 11px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
+.version-badge { font-size: 10px; font-family: var(--mono); color: var(--accent); background: rgba(0,200,180,0.08); border: 1px solid var(--border); padding: 2px 8px; border-radius: 2px; letter-spacing: 1px; }
+
+/* MAP */
+#map { width: 100%; height: 100%; }
+.leaflet-container { background: #080c10 !important; }
+.map-overlay { position: absolute; top: 16px; left: 16px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+.map-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); font-family: var(--mono); font-size: 11px; padding: 8px 12px; cursor: pointer; letter-spacing: 1px; transition: all 0.15s; border-radius: 2px; }
+.map-btn:hover { border-color: var(--accent); color: var(--accent); }
+.map-btn.active { background: rgba(0,200,180,0.1); border-color: var(--accent); color: var(--accent); }
+.map-instruction { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(8,12,16,0.9); border: 1px solid var(--border2); padding: 8px 16px; font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 1px; border-radius: 2px; z-index: 500; pointer-events: none; transition: opacity 0.3s; }
+.map-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 400; opacity: 0; transition: opacity 0.3s; }
+.map-crosshair.visible { opacity: 0.5; }
+.map-crosshair::before, .map-crosshair::after { content: ''; position: absolute; background: var(--accent); }
+.map-crosshair::before { width: 24px; height: 1px; top: 0; left: -12px; }
+.map-crosshair::after { width: 1px; height: 24px; top: -12px; left: 0; }
+
+/* SIDE PANE SECTIONS */
+.side-scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--accent3) transparent; }
+.section { border-bottom: 1px solid var(--border); }
+.section-header { padding: 12px 16px; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.section-title { font-size: 10px; font-family: var(--mono); letter-spacing: 2px; color: var(--text3); text-transform: uppercase; }
+.section-num { font-size: 10px; font-family: var(--mono); color: var(--accent3); }
+.section-body { padding: 0 16px 16px; }
+
+/* MODE SELECTOR */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mode-btn { background: var(--bg3); border: 1px solid var(--border); padding: 8px 10px; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 1px; transition: all 0.15s; border-radius: 2px; display: flex; align-items: center; gap: 6px; }
+.mode-btn:hover { border-color: var(--border2); color: var(--text2); }
+.mode-btn.active { background: rgba(0,200,180,0.08); border-color: var(--accent); color: var(--accent); }
+.mode-icon { font-size: 14px; }
+
+/* INPUTS */
+.input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+.input-group { display: flex; flex-direction: column; gap: 4px; }
+.input-label { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+.input-field { background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 11px; padding: 6px 8px; border-radius: 2px; outline: none; transition: border-color 0.15s; width: 100%; }
+.input-field:focus { border-color: var(--accent); }
+.input-field.has-value { border-color: var(--border2); color: var(--accent2); }
+.point-label { font-size: 9px; font-family: var(--mono); color: var(--accent3); letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.point-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+.point-dot.b { background: var(--accent); }
+.set-btn { font-size: 9px; font-family: var(--mono); color: var(--accent3); background: none; border: 1px solid var(--border); padding: 2px 6px; cursor: pointer; border-radius: 2px; margin-left: auto; transition: all 0.15s; letter-spacing: 1px; }
+.set-btn:hover { color: var(--accent); border-color: var(--border2); }
+
+/* SOURCE & DATE */
+.source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+.source-btn { background: var(--bg3); border: 1px solid var(--border); padding: 8px; cursor: pointer; font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 1px; transition: all 0.15s; border-radius: 2px; text-align: center; }
+.source-btn:hover { border-color: var(--border2); color: var(--text2); }
+.source-btn.active { background: rgba(0,200,180,0.08); border-color: var(--accent); color: var(--accent); }
+.source-name { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.source-desc { font-size: 9px; opacity: 0.6; }
+.date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* COMPUTE BUTTON */
+.compute-btn { width: 100%; padding: 14px; background: rgba(0,200,180,0.08); border: 1px solid var(--accent); color: var(--accent); font-family: var(--mono); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; border-radius: 2px; position: relative; overflow: hidden; }
+.compute-btn:hover { background: rgba(0,200,180,0.15); }
+.compute-btn:active { transform: scale(0.99); }
+.compute-btn.loading { color: var(--accent3); pointer-events: none; }
+.compute-btn.loading::after { content: ''; position: absolute; left: 0; top: 0; height: 2px; background: var(--accent); animation: loading 1.5s infinite; }
+@keyframes loading { 0%{width:0;left:0} 50%{width:60%;left:20%} 100%{width:0;left:100%} }
+
+/* RESULTS */
+.results-pane { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.result-hidden { display: none; }
+.kappa-display { text-align: center; padding: 20px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px; position: relative; overflow: hidden; }
+.kappa-display::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.kappa-display.visible-class::before { background: var(--green); }
+.kappa-display.blocked-class::before { background: var(--red); }
+.kappa-value { font-size: 48px; font-family: var(--mono); font-weight: 700; line-height: 1; }
+.kappa-value.visible-class { color: var(--green); }
+.kappa-value.blocked-class { color: var(--red); }
+.kappa-label { font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: 2px; margin-top: 4px; }
+.verdict-badge { display: inline-block; font-size: 10px; font-family: var(--mono); padding: 3px 10px; border-radius: 2px; letter-spacing: 2px; margin-top: 8px; }
+.verdict-badge.visible-class { background: rgba(34,221,136,0.1); color: var(--green); border: 1px solid rgba(34,221,136,0.3); }
+.verdict-badge.blocked-class { background: rgba(255,68,68,0.1); color: var(--red); border: 1px solid rgba(255,68,68,0.3); }
+
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.metric-card { background: var(--bg3); border: 1px solid var(--border); padding: 10px; border-radius: 2px; }
+.metric-val { font-size: 16px; font-family: var(--mono); font-weight: 700; color: var(--accent2); }
+.metric-lbl { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 1px; margin-top: 3px; }
+
+.profile-chart { background: var(--bg3); border: 1px solid var(--border); padding: 12px; border-radius: 2px; }
+.profile-title { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+.chart-canvas { width: 100%; height: 160px; }
+
+.inversion-card { background: var(--bg3); border: 1px solid var(--border); padding: 10px; border-radius: 2px; }
+.inv-title { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+.inv-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.inv-key { font-size: 10px; font-family: var(--mono); color: var(--text3); }
+.inv-val { font-size: 10px; font-family: var(--mono); color: var(--text2); }
+
+.source-tag { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 1px; text-align: right; }
+.source-tag span { color: var(--accent3); }
+
+/* SCAN LINE EFFECT */
+.scanlines { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 9999; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); }
+
+/* MARKER STYLES */
+.custom-marker-a, .custom-marker-b { display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">KAPPA<span>.ARC</span></div>
+    <div class="topbar-divider"></div>
+    <div class="tagline">Atmospheric Refraction Intelligence</div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <div class="status-text">V3 ONLINE</div>
+      <div class="version-badge">PCT/SA2026/050034</div>
+    </div>
+  </div>
+
+  <!-- MAP PANE -->
+  <div class="map-pane">
+    <div id="map"></div>
+    <div class="map-overlay">
+      <button class="map-btn" id="btn-set-a" onclick="startSetPoint('A')">[ SET POINT A ]</button>
+      <button class="map-btn" id="btn-set-b" onclick="startSetPoint('B')">[ SET POINT B ]</button>
+      <button class="map-btn" onclick="clearPoints()">[ CLEAR ]</button>
+    </div>
+    <div class="map-instruction" id="map-instruction" style="opacity:0">CLICK MAP TO SET POINT</div>
+    <div class="map-crosshair" id="map-crosshair"></div>
+  </div>
+
+  <!-- SIDE PANE -->
+  <div class="side-pane">
+    <div class="side-scroll">
+
+      <!-- MODE -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">01</span>
+          <span class="section-title">Application Mode</span>
+        </div>
+        <div class="section-body">
+          <div class="mode-grid">
+            <button class="mode-btn active" onclick="setMode(this,'los')" data-mode="los"><span class="mode-icon">◈</span>LOS LONG RANGE</button>
+            <button class="mode-btn" onclick="setMode(this,'survey')" data-mode="survey"><span class="mode-icon">◎</span>SURVEY / EDM</button>
+            <button class="mode-btn" onclick="setMode(this,'levelling')" data-mode="levelling"><span class="mode-icon">▱</span>LEVELLING</button>
+            <button class="mode-btn" onclick="setMode(this,'marine')" data-mode="marine"><span class="mode-icon">〜</span>MARINE</button>
+            <button class="mode-btn" onclick="setMode(this,'drone')" data-mode="drone"><span class="mode-icon">⬡</span>DRONE / UAV</button>
+            <button class="mode-btn" onclick="setMode(this,'astronomy')" data-mode="astronomy"><span class="mode-icon">✦</span>ASTRONOMY</button>
+            <button class="mode-btn" onclick="setMode(this,'radar')" data-mode="radar"><span class="mode-icon">◉</span>RADAR / MICRO</button>
+            <button class="mode-btn" onclick="setMode(this,'tunnel')" data-mode="tunnel"><span class="mode-icon">⊏</span>TUNNEL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- POINTS -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">02</span>
+          <span class="section-title">Observer → Target</span>
+        </div>
+        <div class="section-body">
+          <div class="point-label"><div class="point-dot"></div>POINT A — OBSERVER <button class="set-btn" onclick="startSetPoint('A')">MAP →</button></div>
+          <div class="input-row">
+            <div class="input-group"><div class="input-label">LAT</div><input class="input-field" id="lat_a" type="number" step="0.001" placeholder="40.515" oninput="updateFromInputs()"></div>
+            <div class="input-group"><div class="input-label">LON</div><input class="input-field" id="lon_a" type="number" step="0.001" placeholder="38.185" oninput="updateFromInputs()"></div>
+            <div class="input-group"><div class="input-label">ELEV (m)</div><input class="input-field" id="elev_a" type="number" placeholder="3035" oninput="updateFromInputs()"></div>
+          </div>
+          <div class="point-label" style="margin-top:10px"><div class="point-dot b"></div>POINT B — TARGET <button class="set-btn" onclick="startSetPoint('B')">MAP →</button></div>
+          <div class="input-row">
+            <div class="input-group"><div class="input-label">LAT</div><input class="input-field" id="lat_b" type="number" step="0.001" placeholder="43.001" oninput="updateFromInputs()"></div>
+            <div class="input-group"><div class="input-label">LON</div><input class="input-field" id="lon_b" type="number" step="0.001" placeholder="43.112" oninput="updateFromInputs()"></div>
+            <div class="input-group"><div class="input-label">ELEV (m)</div><input class="input-field" id="elev_b" type="number" placeholder="5203" oninput="updateFromInputs()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATE & TIME -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">03</span>
+          <span class="section-title">Date & Time (UTC)</span>
+        </div>
+        <div class="section-body">
+          <div class="date-row">
+            <div class="input-group"><div class="input-label">DATE</div><input class="input-field" id="obs_date" type="date" value="2024-12-15"></div>
+            <div class="input-group"><div class="input-label">TIME UTC</div><input class="input-field" id="obs_time" type="time" value="04:00"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA SOURCE -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-num">04</span>
+          <span class="section-title">Data Source</span>
+        </div>
+        <div class="section-body">
+          <div id="source-display" style="background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 2s infinite"></div>
+            <div>
+              <div id="source-name-display" style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:2px;">ERA5 L137 ELITE</div>
+              <div id="source-desc-display" style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px;margin-top:3px;">137 model levels · auto-selected for LOS long range</div>
+            </div>
+            <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--accent3);letter-spacing:1px;">AUTO</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPUTE -->
+      <div class="section">
+        <div class="section-body" style="padding-top:16px">
+          <button class="compute-btn" id="compute-btn" onclick="compute()">▶ COMPUTE KAPPA</button>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="results-section" class="result-hidden">
+        <div class="results-pane">
+
+          <!-- KAPPA VALUE -->
+          <div class="kappa-display" id="kappa-display">
+            <div class="kappa-value" id="kappa-val">—</div>
+            <div class="kappa-label">REFRACTION COEFFICIENT κ</div>
+            <div class="verdict-badge" id="verdict-badge">—</div>
+          </div>
+
+          <!-- METRICS -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-val" id="m-kreq">—</div>
+              <div class="metric-lbl">κ REQUIRED</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="m-deficit">—</div>
+              <div class="metric-lbl">DEFICIT</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="m-dist">—</div>
+              <div class="metric-lbl">DIST (km)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="m-dndh">—</div>
+              <div class="metric-lbl">dN/dh (N/km)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="m-cr">—</div>
+              <div class="metric-lbl">C+R (m)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="m-navg">—</div>
+              <div class="metric-lbl">N AVG</div>
+            </div>
+          </div>
+
+          <!-- PROFILE CHART -->
+          <div class="profile-chart">
+            <div class="profile-title">▸ Refractivity Profile N(z)</div>
+            <canvas id="profile-canvas" class="chart-canvas"></canvas>
+          </div>
+
+          <!-- INVERSION -->
+          <div class="inversion-card">
+            <div class="inv-title">▸ Thermal Layer Analysis</div>
+            <div id="inversion-data"></div>
+          </div>
+
+          <!-- SOURCE TAG -->
+          <div class="source-tag">DATA SOURCE: <span id="result-source">—</span> · KAPPA Arc V3</div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://kappa-backend-v3-production.up.railway.app';
+let map, markerA, markerB, pathLine;
+let settingPoint = null;
+let currentMode = 'los';
+let currentSource = 'elite';
+
+const sourceEndpoints = {
+  elite: '/api/compute/elite',
+  pro: '/api/compute/pro',
+  surface: '/api/compute/surface',
+  gfs: '/api/compute/gfs'
+};
+
+function initMap() {
+  map = L.map('map', { zoomControl: false, attributionControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(map);
+  map.setView([40, 35], 5);
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+  map.on('click', onMapClick);
+}
+
+function makeIcon(color, letter) {
+  return L.divIcon({
+    html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-family:Space Mono,monospace;font-size:11px;font-weight:700;color:#080c10">${letter}</div>`,
+    className: '', iconSize: [28,28], iconAnchor: [14,14]
+  });
+}
+
+function onMapClick(e) {
+  if (!settingPoint) return;
+  const {lat, lng} = e.latlng;
+  if (settingPoint === 'A') {
+    document.getElementById('lat_a').value = lat.toFixed(4);
+    document.getElementById('lon_a').value = lng.toFixed(4);
+    document.getElementById('lat_a').classList.add('has-value');
+    document.getElementById('lon_a').classList.add('has-value');
+    if (markerA) markerA.remove();
+    markerA = L.marker([lat,lng], {icon: makeIcon('#f0a020','A')}).addTo(map);
+  } else {
+    document.getElementById('lat_b').value = lat.toFixed(4);
+    document.getElementById('lon_b').value = lng.toFixed(4);
+    document.getElementById('lat_b').classList.add('has-value');
+    document.getElementById('lon_b').classList.add('has-value');
+    if (markerB) markerB.remove();
+    markerB = L.marker([lat,lng], {icon: makeIcon('#00c8b4','B')}).addTo(map);
+  }
+  updatePath();
+  stopSetPoint();
+}
+
+function startSetPoint(p) {
+  settingPoint = p;
+  document.getElementById('map-instruction').style.opacity = '1';
+  document.getElementById('map-instruction').textContent = `CLICK MAP TO SET POINT ${p}`;
+  document.getElementById('map-crosshair').classList.add('visible');
+  document.getElementById('btn-set-a').classList.toggle('active', p==='A');
+  document.getElementById('btn-set-b').classList.toggle('active', p==='B');
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+function stopSetPoint() {
+  settingPoint = null;
+  document.getElementById('map-instruction').style.opacity = '0';
+  document.getElementById('map-crosshair').classList.remove('visible');
+  document.getElementById('btn-set-a').classList.remove('active');
+  document.getElementById('btn-set-b').classList.remove('active');
+  map.getContainer().style.cursor = '';
+}
+
+function clearPoints() {
+  if (markerA) { markerA.remove(); markerA = null; }
+  if (markerB) { markerB.remove(); markerB = null; }
+  if (pathLine) { pathLine.remove(); pathLine = null; }
+  ['lat_a','lon_a','lat_b','lon_b'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('has-value');
+  });
+  stopSetPoint();
+}
+
+function updateFromInputs() {
+  const la = parseFloat(document.getElementById('lat_a').value);
+  const lo = parseFloat(document.getElementById('lon_a').value);
+  const lb = parseFloat(document.getElementById('lat_b').value);
+  const ob = parseFloat(document.getElementById('lon_b').value);
+  if (!isNaN(la) && !isNaN(lo)) {
+    if (markerA) markerA.remove();
+    markerA = L.marker([la,lo], {icon: makeIcon('#f0a020','A')}).addTo(map);
+  }
+  if (!isNaN(lb) && !isNaN(ob)) {
+    if (markerB) markerB.remove();
+    markerB = L.marker([lb,ob], {icon: makeIcon('#00c8b4','B')}).addTo(map);
+  }
+  updatePath();
+}
+
+function updatePath() {
+  const la = parseFloat(document.getElementById('lat_a').value);
+  const lo = parseFloat(document.getElementById('lon_a').value);
+  const lb = parseFloat(document.getElementById('lat_b').value);
+  const ob = parseFloat(document.getElementById('lon_b').value);
+  if (pathLine) { pathLine.remove(); pathLine = null; }
+  if (!isNaN(la) && !isNaN(lo) && !isNaN(lb) && !isNaN(ob)) {
+    pathLine = L.polyline([[la,lo],[lb,ob]], {
+      color: '#00c8b4', weight: 1.5, opacity: 0.6,
+      dashArray: '6,4'
+    }).addTo(map);
+    map.fitBounds(pathLine.getBounds(), {padding: [60,60]});
+  }
+}
+
+const modeSourceMap = {
+  los:       { source: 'elite',   name: 'ERA5 L137 ELITE',   desc: '137 model levels · auto-selected for LOS long range' },
+  survey:    { source: 'surface', name: 'ERA5 SURFACE',       desc: 'ERA5-Land + L137 · optimized for near-ground survey' },
+  levelling: { source: 'surface', name: 'ERA5 SURFACE',       desc: 'ERA5-Land + L137 · optimized for geodetic levelling' },
+  marine:    { source: 'surface', name: 'ERA5 SURFACE',       desc: 'ERA5-Land + L137 · sea surface temperature focus' },
+  drone:     { source: 'gfs',     name: 'GFS REAL-TIME',      desc: 'Global forecast · optimized for UAV operations' },
+  astronomy: { source: 'elite',   name: 'ERA5 L137 ELITE',   desc: '137 model levels · full atmospheric column' },
+  radar:     { source: 'elite',   name: 'ERA5 L137 ELITE',   desc: '137 model levels · ducting detection focus' },
+  tunnel:    { source: 'surface', name: 'ERA5 SURFACE',       desc: 'ERA5-Land + L137 · near-portal conditions' },
+};
+
+function setMode(btn, mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMode = mode;
+  const ms = modeSourceMap[mode] || modeSourceMap.los;
+  currentSource = ms.source;
+  document.getElementById('source-name-display').textContent = ms.name;
+  document.getElementById('source-desc-display').textContent = ms.desc;
+}
+
+async function compute() {
+  const lat_a = parseFloat(document.getElementById('lat_a').value);
+  const lon_a = parseFloat(document.getElementById('lon_a').value);
+  const elev_a = parseFloat(document.getElementById('elev_a').value);
+  const lat_b = parseFloat(document.getElementById('lat_b').value);
+  const lon_b = parseFloat(document.getElementById('lon_b').value);
+  const elev_b = parseFloat(document.getElementById('elev_b').value);
+  const date = document.getElementById('obs_date').value;
+  const time = document.getElementById('obs_time').value;
+
+  if ([lat_a,lon_a,elev_a,lat_b,lon_b,elev_b].some(isNaN)) {
+    alert('Please fill in all coordinates and elevations.');
+    return;
+  }
+
+  const btn = document.getElementById('compute-btn');
+  btn.classList.add('loading');
+  btn.textContent = '⟳ COMPUTING...';
+
+  try {
+    const endpoint = sourceEndpoints[currentSource] || '/api/compute/elite';
+    const resp = await fetch(API + endpoint, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lat_a, lon_a, elev_a, lat_b, lon_b, elev_b, date, time, mode: currentMode})
+    });
+    const data = await resp.json();
+    if (!resp.ok) { alert('Error: ' + (data.detail || 'Unknown error')); return; }
+    displayResults(data);
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.textContent = '▶ COMPUTE KAPPA';
+  }
+}
+
+function displayResults(d) {
+  document.getElementById('results-section').classList.remove('result-hidden');
+  const visible = d.verdict === 'visible';
+  const cls = visible ? 'visible-class' : 'blocked-class';
+
+  const kd = document.getElementById('kappa-display');
+  const kv = document.getElementById('kappa-val');
+  const vb = document.getElementById('verdict-badge');
+  kd.className = 'kappa-display ' + cls;
+  kv.className = 'kappa-value ' + cls;
+  vb.className = 'verdict-badge ' + cls;
+  kv.textContent = d.k.toFixed(4);
+  vb.textContent = visible ? '✓ LOS CLEAR' : '✗ LOS BLOCKED';
+
+  document.getElementById('m-kreq').textContent = d.k_required.toFixed(4);
+  document.getElementById('m-deficit').textContent = (d.deficit >= 0 ? '+' : '') + d.deficit.toFixed(4);
+  document.getElementById('m-dist').textContent = d.dist_km.toFixed(1);
+  document.getElementById('m-dndh').textContent = d.dndh ? d.dndh.toFixed(2) : '—';
+  document.getElementById('m-cr').textContent = d.corrections ? d.corrections.cr_m.toFixed(2) : '—';
+  document.getElementById('m-navg').textContent = d.n_avg ? d.n_avg.toFixed(1) : '—';
+  document.getElementById('result-source').textContent = (d.source || currentSource).toUpperCase();
+
+  if (d.layers && d.layers.length > 0) drawProfile(d.layers);
+
+  const inv = d.inversion || {};
+  const invRows = [
+    ['DETECTED', inv.detected ? 'YES' : 'NO', inv.detected ? 'var(--amber)' : 'var(--text2)'],
+    ['CLASSIFICATION', (inv.classification||'—').replace(/_/g,' ').toUpperCase(), 'var(--text2)'],
+    ['SIGNIFICANT', inv.significant ? 'YES' : 'NO', inv.significant ? 'var(--red)' : 'var(--green)'],
+    ['BASE ALT', inv.base_alt_m !== undefined ? inv.base_alt_m+' m' : '—', 'var(--text2)'],
+    ['TOP ALT', inv.top_alt_m !== undefined ? inv.top_alt_m+' m' : '—', 'var(--text2)'],
+    ['DEPTH', inv.depth_m !== undefined ? inv.depth_m+' m' : '—', 'var(--text2)'],
+    ['ΔT', inv.delta_T !== undefined ? inv.delta_T.toFixed(3)+' °C' : '—', 'var(--text2)'],
+    ['GRADIENT', inv.gradient !== undefined ? inv.gradient.toFixed(4)+' °C/100m' : '—', 'var(--text2)'],
+    ['BELOW LOS PATH', inv.below_los_path === true ? 'YES — '+inv.below_los_m+' m BELOW' : inv.below_los_path === false ? 'NO — WITHIN PATH' : '—', inv.below_los_path === true ? 'var(--green)' : inv.below_los_path === false ? 'var(--amber)' : 'var(--text2)'],
+  ];
+  const invHtml = invRows.map(([k,v,c]) =>
+    `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
+  ).join('');
+  document.getElementById('inversion-data').innerHTML = invHtml;
+
+  updateRayOnMap(d);
+}
+
+function drawProfile(layers) {
+  const canvas = document.getElementById('profile-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 380;
+  const H = 160;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+
+  const Ns = layers.map(l => l.N || 0);
+  const alts = layers.map(l => l.alt || 0);
+  const minN = Math.min(...Ns), maxN = Math.max(...Ns);
+  const minA = Math.min(...alts), maxA = Math.max(...alts);
+  const pad = {t:10,r:10,b:24,l:40};
+
+  ctx.strokeStyle = 'rgba(0,200,180,0.15)';
+  ctx.lineWidth = 0.5;
+  for (let i=0;i<4;i++) {
+    const x = pad.l + (W-pad.l-pad.r)*i/3;
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b); ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#00c8b4';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  layers.forEach((l,i) => {
+    const x = pad.l + (W-pad.l-pad.r) * (l.N-minN)/(maxN-minN||1);
+    const y = H-pad.b - (H-pad.t-pad.b) * (l.alt-minA)/(maxA-minA||1);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = '#4a7070';
+  ctx.font = '9px Space Mono';
+  ctx.fillText(minN.toFixed(0), pad.l, H-pad.b+14);
+  ctx.fillText(maxN.toFixed(0), W-pad.r-20, H-pad.b+14);
+  ctx.fillText('N', pad.l + (W-pad.l-pad.r)/2 - 4, H-pad.b+14);
+
+  ctx.save();
+  ctx.translate(12, H/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText('ALT (m)', -20, 0);
+  ctx.restore();
+}
+
+function updateRayOnMap(d) {
+  if (d.ray && d.ray.clearance_m !== undefined) {
+    const la = parseFloat(document.getElementById('lat_a').value);
+    const lo = parseFloat(document.getElementById('lon_a').value);
+    const lb = parseFloat(document.getElementById('lat_b').value);
+    const ob = parseFloat(document.getElementById('lon_b').value);
+    const color = d.verdict === 'visible' ? '#22dd88' : '#ff4444';
+    if (pathLine) pathLine.remove();
+    pathLine = L.polyline([[la,lo],[lb,ob]], {
+      color, weight: 2, opacity: 0.8, dashArray: d.verdict==='visible' ? null : '8,4'
+    }).addTo(map);
+  }
+}
+
+function waitForLeaflet() {
+  if (typeof L !== "undefined") {
+    initMap();
+  } else {
+    setTimeout(waitForLeaflet, 50);
+  }
+}
+waitForLeaflet();
+</script>
+</body>
+</html>
