@@ -523,6 +523,12 @@ function displayResults(d) {
   document.getElementById('m-cr').textContent = d.corrections ? d.corrections.cr_m.toFixed(2) : '—';
   document.getElementById('m-navg').textContent = d.n_avg ? d.n_avg.toFixed(1) : '—';
   document.getElementById('result-source').textContent = (d.source || currentSource).toUpperCase();
+  const srcTag = document.getElementById('result-source');
+  if (d.cached) {
+    srcTag.innerHTML = (d.source || currentSource).toUpperCase() + ' &nbsp;<span style="color:var(--green);font-size:10px">⚡ CACHED</span>';
+  } else {
+    srcTag.innerHTML = (d.source || currentSource).toUpperCase() + ' &nbsp;<span style="color:var(--text3);font-size:10px">◈ COMPUTED</span>';
+  }
 
   if (d.layers && d.layers.length > 0) drawProfile(d.layers);
 
