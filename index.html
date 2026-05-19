@@ -140,6 +140,9 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .supp-card { background: var(--bg3); border: 1px solid var(--border2); padding: 10px; border-radius: 2px; }
 .supp-title { font-size: 9px; font-family: var(--mono); color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .supp-title::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.rs-card { background: var(--bg3); border: 1px solid rgba(240,160,32,0.25); padding: 10px; border-radius: 2px; }
+.rs-title { font-size: 9px; font-family: var(--mono); color: var(--amber); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.rs-title::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); display: inline-block; animation: pulse 2s infinite; }
 .source-tag { font-size: 9px; font-family: var(--mono); color: var(--text3); letter-spacing: 1px; text-align: right; }
 .source-tag span { color: var(--accent3); }
 
@@ -312,6 +315,12 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
           <div class="inversion-card">
             <div class="inv-title">▸ Thermal Layer Analysis</div>
             <div id="inversion-data"></div>
+          </div>
+
+          <!-- RADIOSONDE -->
+          <div class="rs-card" id="rs-card" style="display:none">
+            <div class="rs-title">Nearest Radiosonde</div>
+            <div id="rs-data"></div>
           </div>
 
           <!-- SUPPLEMENTARY -->
@@ -531,6 +540,30 @@ function displayResults(d) {
   }
 
   if (d.layers && d.layers.length > 0) drawProfile(d.layers);
+
+  // Radiosonde data
+  const rs = d.radiosonde;
+  if (rs) {
+    document.getElementById('rs-card').style.display = 'block';
+    const rsRows = [
+      ['STATION', rs.station_name + ' (' + rs.station_id + ')', 'var(--amber)'],
+      ['DISTANCE', rs.distance_km + ' km from path', 'var(--text2)'],
+      ['SOUNDING', rs.date + ' ' + rs.hour + 'Z', 'var(--text2)'],
+      ['LEVELS', rs.total_levels + ' pressure levels', 'var(--text2)'],
+      ['SOURCE', rs.source, 'var(--text3)'],
+    ];
+    if (rs.levels && rs.levels.length > 0) {
+      const l = rs.levels[0];
+      rsRows.push(['SURFACE T', l.temp_c + ' °C', 'var(--accent2)']);
+      if (l.dewp_c) rsRows.push(['SURFACE Td', l.dewp_c + ' °C', 'var(--accent2)']);
+    }
+    const rsHtml = rsRows.map(([k,v,c]) =>
+      \`<div class="inv-row"><div class="inv-key">\${k}</div><div class="inv-val" style="color:\${c}">\${v}</div></div>\`
+    ).join('');
+    document.getElementById('rs-data').innerHTML = rsHtml;
+  } else {
+    document.getElementById('rs-card').style.display = 'none';
+  }
 
   // Supplementary data
   const supp = d.supplementary;
