@@ -547,7 +547,8 @@ function displayResults(d) {
     document.getElementById('rs-card').style.display = 'block';
     const rsRows = [
       ['STATION', rs.station_name + ' (' + rs.station_id + ')', 'var(--amber)'],
-      ['DISTANCE', rs.distance_km + ' km from path', 'var(--text2)'],
+      ['DISTANCE', rs.distance_km + ' km from path', rs.distance_km < 100 ? 'var(--green)' : rs.distance_km < 300 ? 'var(--amber)' : 'var(--red)'],
+      ['ACCURACY', rs.distance_km < 100 ? '✅ Highly representative' : rs.distance_km < 300 ? '⚠️ Use with caution' : '❌ May not represent local conditions', rs.distance_km < 100 ? 'var(--green)' : rs.distance_km < 300 ? 'var(--amber)' : 'var(--red)'],
       ['SOUNDING', rs.date + ' ' + rs.hour + 'Z', 'var(--text2)'],
       ['LEVELS', rs.total_levels + ' pressure levels', 'var(--text2)'],
       ['SOURCE', rs.source, 'var(--text3)'],
@@ -558,7 +559,7 @@ function displayResults(d) {
       if (l.dewp_c) rsRows.push(['SURFACE Td', l.dewp_c + ' °C', 'var(--accent2)']);
     }
     const rsHtml = rsRows.map(([k,v,c]) =>
-      `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
+      \`<div class="inv-row"><div class="inv-key">\${k}</div><div class="inv-val" style="color:\${c}">\${v}</div></div>\`
     ).join('');
     document.getElementById('rs-data').innerHTML = rsHtml;
   } else {
@@ -591,7 +592,7 @@ function displayResults(d) {
     ['DEPTH', inv.depth_m !== undefined ? inv.depth_m+' m' : '—', 'var(--text2)'],
     ['ΔT', inv.delta_T !== undefined ? inv.delta_T.toFixed(3)+' °C' : '—', 'var(--text2)'],
     ['GRADIENT', inv.gradient !== undefined ? inv.gradient.toFixed(4)+' °C/100m' : '—', 'var(--text2)'],
-    ['BELOW LOS PATH', (function(){ if(inv.below_los_path===true) return 'YES — '+inv.below_los_m+' m BELOW'; const base=inv.base_alt_m||0; const emax=Math.max(d.elev_a||0,d.elev_b||0); if(base>emax) return 'NO — ABOVE PATH'; return 'NO — WITHIN PATH'; })(), inv.below_los_path === true ? 'var(--green)' : 'var(--amber)'],
+    ['BELOW LOS PATH', inv.below_los_path === true ? 'YES — '+inv.below_los_m+' m BELOW' : inv.below_los_path === false ? 'NO — WITHIN PATH' : '—', inv.below_los_path === true ? 'var(--green)' : inv.below_los_path === false ? 'var(--amber)' : 'var(--text2)'],
   ];
   const invHtml = invRows.map(([k,v,c]) =>
     `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
