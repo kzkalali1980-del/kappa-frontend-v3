@@ -591,7 +591,7 @@ function displayResults(d) {
     ['DEPTH', inv.depth_m !== undefined ? inv.depth_m+' m' : '—', 'var(--text2)'],
     ['ΔT', inv.delta_T !== undefined ? inv.delta_T.toFixed(3)+' °C' : '—', 'var(--text2)'],
     ['GRADIENT', inv.gradient !== undefined ? inv.gradient.toFixed(4)+' °C/100m' : '—', 'var(--text2)'],
-    ['BELOW LOS PATH', inv.below_los_path === true ? 'YES — '+inv.below_los_m+' m BELOW' : inv.below_los_path === false ? 'NO — WITHIN PATH' : '—', inv.below_los_path === true ? 'var(--green)' : inv.below_los_path === false ? 'var(--amber)' : 'var(--text2)'],
+    ['BELOW LOS PATH', (function(){ if(inv.below_los_path===true) return 'YES — '+inv.below_los_m+' m BELOW'; const base=inv.base_alt_m||0; const emax=Math.max(d.elev_a||0,d.elev_b||0); if(base>emax) return 'NO — ABOVE PATH'; return 'NO — WITHIN PATH'; })(), inv.below_los_path === true ? 'var(--green)' : 'var(--amber)'],
   ];
   const invHtml = invRows.map(([k,v,c]) =>
     `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
