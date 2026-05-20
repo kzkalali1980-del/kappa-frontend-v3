@@ -558,7 +558,7 @@ function displayResults(d) {
       if (l.dewp_c) rsRows.push(['SURFACE Td', l.dewp_c + ' °C', 'var(--accent2)']);
     }
     const rsHtml = rsRows.map(([k,v,c]) =>
-      \`<div class="inv-row"><div class="inv-key">\${k}</div><div class="inv-val" style="color:\${c}">\${v}</div></div>\`
+      `<div class="inv-row"><div class="inv-key">${k}</div><div class="inv-val" style="color:${c}">${v}</div></div>`
     ).join('');
     document.getElementById('rs-data').innerHTML = rsHtml;
   } else {
